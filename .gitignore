@@ -1,2 +1,3 @@
-# ignore all files in .idea folder
-.idea/*.*
+# ignore all files in .idea and __pycache__ folders
+.idae
+__pycache__

@@ -1,9 +1,12 @@
 import GUI
-from board import Board
+from boardstate import BoardState
+from snake_ai import SnakeAI
 
 from tkinter import Tk
 
-board = Board()
+init_board = BoardState()
+snake_mind = SnakeAI()
+snake_mind.update_moves(init_board)
 root = Tk()
-GUI.GUI(root, board)
+GUI.GUI(root, init_board, snake_mind)
 root.mainloop()
