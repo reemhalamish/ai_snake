@@ -37,7 +37,7 @@ class SnakeAI:
 
     @staticmethod
     def a_star(board):
-        heuristic = SnakeAI.heuristic_for_astar
+        heuristic = lambda board_state : min(SnakeAI.heuristic_for_astar(board_state), SnakeAI.run_for_your_tail(board_state))
 
         first_step = Solution(board, 0, heuristic(board), [])
         print("first step:", first_step)
@@ -93,7 +93,7 @@ class SnakeAI:
         rect = [[0 for _ in range(abs(dims[1])+1)] for _ in range(abs(dims[0])+1)]
         for snake_pos, value in board.iterate_snake_positions():
             value = board.get_snake_length() + 1 - value  # how much time it has left
-            value = value + 1 - BoardState.get_distance_between_positions(head_pos, snake_pos)  # how much actual wait
+            value = value + 1 - man_dist(head_pos, snake_pos)  # how much actual wait
             if value < 0:  # when the snake will be there when this part in the tail will be gone
                 value = 0
             if (not value) or (not in_bounderies(snake_pos)):  # doesnt need to wait or not part of the rect anyway
@@ -155,30 +155,6 @@ class SnakeAI:
         retval = min(all_snake_positions_plus_times)
 
         return retval
-
-        '''
-        for line in rect: print(line)
-        exit(0)
-        _ = input()
-
-
-
-        return man_dis
-
-        extra_discount = 1/ (board.get_snake_length() + 1)
-        total_discount_bonus = 0
-        for pos, _ in board.iterate_snake_positions():
-            x, y = pos
-            dx, dy = abs(x - apple_pos[0]), abs(y - apple_pos[1])
-            if \
-                not dy \
-                or not dx \
-                or board.is_at_edge_of_board(pos):
-                total_discount_bonus += extra_discount
-        # discount if strait line (horizontal \ vertical), or if snake is moving from the edges
-        return man_dis # - total_discount_bonus
-
-        '''
 
     @staticmethod
     def a_star_ver_2(board):
@@ -271,3 +247,17 @@ class SnakeAI:
 
         return not(columns_test_passed and reversed_columns_test_passed)
 
+    @staticmethod
+    def run_for_your_tail(board):
+        head_pos, apple_pos = board.get_snake_head_position(), board.get_apple_position()
+        man_dist = BoardState.get_distance_between_positions
+
+        minimum_movement = float("inf")
+        for snake_pos, value in board.iterate_snake_positions():
+            value = board.get_snake_length() + 1 - value  # how much time it has left before disappearing
+            value = value + 1 - man_dist(head_pos, snake_pos)  # how much actual wait if we get out now
+            if value < 0:  # when the snake will be there when this part in the tail will be gone
+                value = 0
+                minimum_movement = min(minimum_movement,
+                                       man_dist(head_pos, snake_pos) + value + man_dist(snake_pos, apple_pos))
+        return minimum_movement

@@ -39,7 +39,7 @@ class BoardState:
                 self.init_random_snake()
             except IndexError: # the random snake somehow crushed into himself at some point
                 self.init_base_snake()  # create a very simple snake instead
-            
+
 
     ''' copies existing board state and then updates it by the movement '''
     def _copy(self, other, movement):
