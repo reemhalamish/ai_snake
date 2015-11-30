@@ -2,42 +2,54 @@ from random import choice as random_from_seq
 from time import time
 from boardstate import BoardState
 from utils import Heap, Solution
+from thread_ai import ThreadAStar, threadLock
 
+CRITICAL_AMOUNT_OF_MOVES_TO_OPEN_NEW_SOLVER = 5
 
 
 class SnakeAI:
-    def __init__(self):
-        self.func_to_use = SnakeAI.a_star
+    def __init__(self, starting_board):
+        # self.func_to_use = SnakeAI.a_star
+        self.board = starting_board
         self.moves_to_give = []
+        self.moves_since_last_solver_activated = 0
+        self.solvers_initiated = 0
+        self.solver_daemon = self.initiate_solver(starting_board)
 
     def get_next_move(self, board):
-        retval = self.moves_to_give[0]
-        if retval == BoardState.MOVE_EMPTY:
-            if board.get_snake_length() > 5:
-                self.update_moves(board)
+        self.moves_since_last_solver_activated += 1
+        if not self.moves_to_give:
+            if board.is_critical_change_from(self.board):
+                self.start_new_task_for_solver(board)
+                self.board = board
+            elif self.moves_since_last_solver_activated >= CRITICAL_AMOUNT_OF_MOVES_TO_OPEN_NEW_SOLVER:
+                print("too many moves passed, starting a new search")
+                self.start_new_task_for_solver(board)
+                self.moves_since_last_solver_activated = 0
+
+            return BoardState.MOVE_EMPTY
+
         else:
-            self.moves_to_give = self.moves_to_give[1:]
-        return retval
+            threadLock.acquire()
+            retval, self.moves_to_give = self.moves_to_give[0], self.moves_to_give[1:]
+            threadLock.release()
+            return retval
 
-    ''' returns a tuple - next_board, next_move '''
-    # TODO call AI in different thread
-    def update_moves(self, board_state):
-        start = time()
-        next_moves = self.func_to_use(board_state)
-        self.moves_to_give = next_moves if next_moves else [BoardState.MOVE_EMPTY]
-        end = time()
-        print ("calculations took {} ms".format(1000 * (end-start)))
-        print("way to go: {}".format("".join([BoardState.string(move) + " --> " for move in self.moves_to_give])))
-        #exit()
+    def initiate_solver(self, board_state):
+        solver_thread = ThreadAStar(board_state, self.moves_to_give, self.solvers_initiated)
+        solver_thread.start()  # notice that start() is a method from Thread, which calls run() that we defined :)
+        print("solver_thread", solver_thread)
+        return solver_thread
 
-    @staticmethod
-    def dummy(board):
-        return [random_from_seq([n_board for n_board, move in board.get_successors()])]
+    def start_new_task_for_solver(self, new_board):
+        self.moves_to_give = []
+        self.solver_daemon.solve_new_search(new_board, self.moves_to_give)
 
+    '''
 
     @staticmethod
     def a_star(board):
-        heuristic = lambda board_state : min(SnakeAI.heuristic_for_astar(board_state), SnakeAI.run_for_your_tail(board_state))
+        heuristic = lambda board_state : min(SnakeAI.check_rectangle_head_apple(board_state), SnakeAI.chase_your_tail(board_state))
 
         first_step = Solution(board, 0, heuristic(board), [])
         print("first step:", first_step)
@@ -45,6 +57,7 @@ class SnakeAI:
         all_options.push(first_step)
 
         while all_options:  # something left:
+            end = time()
             cur_solution = all_options.pop()
             if cur_solution.board.is_winning_board():
                 print ("found a way to eat the apple used only {} vertices!".format(all_options.get_pushed_amount()))
@@ -59,14 +72,13 @@ class SnakeAI:
         return []
 
     @staticmethod
-    def heuristic_for_astar(board):
+    def check_rectangle_head_apple(board):
         head_pos, apple_pos = board.get_snake_head_position(), board.get_apple_position()
-        print("from head: {} to apple: {}".format(
-            head_pos,
-            apple_pos
-        ))
+        # print("from head: {} to apple: {}".format(
+        #     head_pos,
+        #     apple_pos
+        # ), end=" ")
         man_dist = BoardState.get_distance_between_positions
-        # man_dis = BoardState.get_distance_between_positions(head_pos, apple_pos)
 
         # idea - create a punish if the snake-tail blocks the way
         #
@@ -75,12 +87,6 @@ class SnakeAI:
         # else:
         #       return man_dist(head, apple)
 
-
-
-        # create a punish if the snake-tail blocks the way
-        #
-        # check the rectangle defined by (snake_head, apple)
-        # if this rect is closed all the way, then add the min time you need to wait for it to be opened again
         dims = (head_pos[0] - apple_pos[0], head_pos[1] - apple_pos[1])
         rect_start_point = (min(head_pos[0], apple_pos[0]), min(head_pos[1], apple_pos[1]))
         rect_end_point = (max(head_pos[0], apple_pos[0]), max(head_pos[1], apple_pos[1]))
@@ -129,135 +135,11 @@ class SnakeAI:
                     for pos, time_to_wait in time_to_wait_for_snake_pos_to_clear.items()
             ]
             retval = min(all_snake_positions_plus_times)
-            #print("blocked, returning min: " + str(retval))
+            # print("blocked, returning min: " + str(retval))
             return retval
         else:
             retval = man_dist(head_pos, apple_pos)
-            #print("free! returning man_dist: " + str(retval))
+            # print("free! returning man_dist: " + str(retval))
             return retval
-
-        # rect is ready. now check with BFS if there is a path between the head and the apple.
-        # if there is a path
-        #  then return len(path)
-        # if no such path is found (SIMULATED BY path_len == 0)
-        #  then return min(man_dist(head, pos) + time_to_wait(pos) + man_dist(pos, apple) for pos in snake_body w/o head
-
-        path_len = SnakeAI.get_path_len_for_rect(rect, translate(head_pos), translate(apple_pos))
-        if path_len:
-            return path_len
-
-        # no path len
-        all_snake_positions_plus_times = [
-                    man_dist(head_pos, pos) + time_to_wait + man_dist(pos, apple_pos)
-                    for pos, time_to_wait in time_to_wait_for_snake_pos_to_clear.items()
-            ]
-        # print(all_snake_positions_plus_times)
-        retval = min(all_snake_positions_plus_times)
-
-        return retval
-
-    @staticmethod
-    def a_star_ver_2(board):
-        # first try to A* with a frozen board. i,e, let the head move seperatly from the body until it gets the apple
-        #               and store all the positions you traveled in inside visited=set() so that you wont travel twice
-        # if successeded - then there is a path, run the ver_1_a_star function
-        # if failed, than the head and the apple are in two connectivity components with the tail seperating them
-        pass
-
-    @staticmethod
-    def get_path_len_for_rect(rect, start_pos, end_pos):
-        #print("starting get_path_len_for_rect()")
-        visited = set()
-        bnd_x, bnd_y = len(rect[0])-1, len(rect)-1
-        to_check = [(start_pos, 0)]
-        for position, travel_time in to_check:
-            #print("position: {}, travel_time: {}".format(position, travel_time))
-            if position in visited:
-                #print("visited position {}".format(position))
-                continue
-            if position == end_pos:
-                #print("returning {}\n\n".format(travel_time))
-                return travel_time
-            x, y = position
-            if not (0 <= x <= bnd_x and 0 <= y <= bnd_y) or rect[y][x] > 0:  # illegal positions to go through
-                #print("bad position {}".format(position))
-                continue
-            visited.add(position)
-            for move in BoardState.ALL_MOVES:
-                new_pos = BoardState.add_positions(position, move)
-                #print("new_pos: {}".format(new_pos))
-                to_check.append((new_pos, travel_time+1))
-        # reached here? no path was found
-        #print("returning 0\n\n")
-        return 0
-
-    ''' try to tackle this rect from both directions - horizontally and vertically
-        try from two start points at each
-        if found a wall, return True, if all 4 tests came negative return False
     '''
-    @staticmethod
-    def rect_is_blocked(rect, start_pos, end_pos):
-        test_lines = False
-        # first two tests - horizontally
-        lines = []
-        lines_reversed = []
-        for line in rect:
-            found_obstacle = False
-            for i, x in enumerate(line):
-                if x: # found an obstacle
-                    lines.append(i)
-                    found_obstacle = True
-                    break
-            if not found_obstacle: # at the whole line
-                test_lines = True # clear area!
-                break
-            for i, x in enumerate(reversed(line)):
-                if x: # found an obstacle
-                    lines_reversed.append(i)
-                    break
-        if not test_lines: # passed yet
-            lines_test_passed = all([abs(o1 - o2) > 1 for o1, o2 in zip(lines, lines[1:])])
-            reversed_lines_test_passed = all([abs(o1 - o2) > 1 for o1, o2 in zip(lines_reversed, lines_reversed[1:])])
-            if not (reversed_lines_test_passed and lines_test_passed): # there is a continuous obstacle
-                return True
 
-
-        # next two test - vertically
-        cols = []
-        cols_reversed = []
-        for j in range(len(rect[0])):
-            found_obstacle = False
-            for i in range(len(rect)):
-                val = rect[i][j]
-                if val:  # found an obstacle
-                    cols.append(i)
-                    found_obstacle = True
-                    break
-            if not found_obstacle: # there is a free column + reached here means lines are free two
-                return False
-            for i in reversed(range(len(rect))):
-                val = rect[i][j]
-                if val:  # found an obstacle
-                    cols_reversed.append(i)
-                    break
-
-        # reached here means we need to check the jumps between every column
-        columns_test_passed = all([abs(o1 - o2) > 1 for o1, o2 in zip(cols, cols[1:])])
-        reversed_columns_test_passed = all([abs(o1 - o2) > 1 for o1, o2 in zip(cols_reversed, cols_reversed[1:])])
-
-        return not(columns_test_passed and reversed_columns_test_passed)
-
-    @staticmethod
-    def run_for_your_tail(board):
-        head_pos, apple_pos = board.get_snake_head_position(), board.get_apple_position()
-        man_dist = BoardState.get_distance_between_positions
-
-        minimum_movement = float("inf")
-        for snake_pos, value in board.iterate_snake_positions():
-            value = board.get_snake_length() + 1 - value  # how much time it has left before disappearing
-            value = value + 1 - man_dist(head_pos, snake_pos)  # how much actual wait if we get out now
-            if value < 0:  # when the snake will be there when this part in the tail will be gone
-                value = 0
-                minimum_movement = min(minimum_movement,
-                                       man_dist(head_pos, snake_pos) + value + man_dist(snake_pos, apple_pos))
-        return minimum_movement

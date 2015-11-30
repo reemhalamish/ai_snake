@@ -1,14 +1,20 @@
 from random import randint as random_range, choice as random_from_seq
+
 '''
 # max
-TILES_ROW = 55
-TILES_COL = 30
+TILES_ROWS = 55
+TILES_COLS = 30
 '''
 
 # normal
-TILES_ROW = 10
-TILES_COL = 10
+TILES_ROWS = 10
+TILES_COLS = 10
+TILES_DEPTHS = 10
+
 SNAKE_INIT_LENGTH = 5
+SNAKE_MAX_LENGTH = 70
+MAX_TURNS_SAVE_LEAVE_TAIL = 4
+
 
 class BoardState:
     TILE_APPLE = -1
@@ -21,7 +27,7 @@ class BoardState:
     MOVE_D = (0, 1)
     MOVE_R = (1, 0)
     MOVE_L = (-1, 0)
-    MOVE_EMPTY = (0,0)
+    MOVE_EMPTY = (0, 0)
     ALL_MOVES = (MOVE_D, MOVE_R, MOVE_U, MOVE_L)
 
     def __init__(self, i_have_parent=None, movement_from_parent = None):
@@ -37,26 +43,97 @@ class BoardState:
             '''
             try:
                 self.init_random_snake()
-            except IndexError: # the random snake somehow crushed into himself at some point
+            except IndexError:  # the random snake somehow crushed into himself at some point
                 self.init_base_snake()  # create a very simple snake instead
-
 
     ''' copies existing board state and then updates it by the movement '''
     def _copy(self, other, movement):
-        leave_prev_tail = hasattr(other, "leave_tail")
         snake_positions_list = other._snake_positions_list[:]
         snake_len = other.get_snake_length()
         assert(len(snake_positions_list) == snake_len)
 
+        leave_prev_tail = 0
+        if hasattr(other, "leave_tail"):
+            leave_prev_tail = min(other.leave_tail, MAX_TURNS_SAVE_LEAVE_TAIL)
+        if snake_len >= SNAKE_MAX_LENGTH:
+            leave_prev_tail = 0
+
         snake_head_pos = BoardState.add_positions(movement, other.get_snake_head_position())
-        snake_positions_list.insert(0, snake_head_pos)
-        if leave_prev_tail:
-            snake_len += 1
-        else:
+        empty_move_now = snake_head_pos == snake_positions_list[0]
+
+        # normal state
+        if not empty_move_now:  # update the snake
+            snake_positions_list.insert(0, snake_head_pos)
+            if leave_prev_tail:
+                leave_prev_tail -= 1
+            else:  # cut the tail off
+                snake_positions_list = snake_positions_list[:-1]
+
+        # empty move state - when you can cut
+        elif snake_len >= SNAKE_INIT_LENGTH:
             snake_positions_list = snake_positions_list[:-1]
+            leave_prev_tail += 1
+            #  cut the tail anyway
+            #  just remember to restore it later (if not too big)
+
+        if leave_prev_tail:
+            self.leave_tail = leave_prev_tail
+
+        # if empty_move_now and snake_len > SNAKE_INIT_LENGTH:  # shorten the tail now, deal with it later
+        #     leave_prev_tail += 1
+        # else:  # regular move
+        #     snake_positions_list.insert(0, snake_head_pos)
+        #     # if leave_prev_tail:
+        #     #     leave_prev_tail -= 1
+        #     # else:
+        # if not empty_move_now and leave_prev_tail:
+        #     snake_positions_list = snake_positions_list[:-1]
+        #     leave_prev_tail -= 1
+        #
+        # if leave_prev_tail:
+        #     self.leave_tail = leave_prev_tail +1 -1
+        # # else:   # just a regular move
+        # # snake_positions_list = snake_positions_list[:-1]
+
+
+        #
+        # if
+        #     print("empty move detected")
+        #     if leave_prev_tail:
+        #         print("should leave prev tail")
+        #     # dont add the head.
+        #
+        #     # from now on, there are actions to leave for the next generation
+        #     has_more_room = any([
+        #         BoardState._is_inside_board(
+        #             BoardState.add_positions(move, snake_head_pos)) and
+        #         BoardState.add_positions(move, snake_head_pos) not in snake_positions_list
+        #
+        #         for move in BoardState.ALL_MOVES])
+        #
+        #     if leave_prev_tail and has_more_room:  # if you can deal with growing your tail next board
+        #         # then pass the order to siblings to deal with
+        #         self.leave_tail = True
+        #
+        # else:  # empty move, dont move
+        #     snake_positions_list.insert(0, snake_head_pos)
+
+        #     # one tile not to move
+        #     snake_len -= 1
+        #     # but if you should have grow your tail, let the next board do that
+        #     # if leave_prev_tail:
+        #     #     self.leave_tail = True
+        #
+        # else:
+        #     snake_positions_list.insert(0, snake_head_pos)
+        #
+        # if leave_prev_tail:
+        #     snake_len += 1
+        # else:
+        #     snake_positions_list = snake_positions_list[:-1]
 
         # commit changes to the new board state
-        self._snake_length = snake_len
+        self._snake_length = len(snake_positions_list)
         self._snake_positions_list = snake_positions_list
         self._apple_pos = other.get_apple_position()
 
@@ -92,12 +169,14 @@ class BoardState:
         self._apple_pos = apple_pos
 
     def init_random_snake(self):
-        apple = (random_range(0, TILES_ROW-1), random_range(0, TILES_COL-1))
+        apple = (random_range(0, BoardState.get_width() - 1), random_range(0, BoardState.get_height() - 1))
         self._apple_pos = apple
 
         snake_head = None
         while True:
-            snake_head = (random_range(0, TILES_ROW-1), random_range(0, TILES_COL-1))
+            snake_head = (
+                random_range(0, BoardState.get_width() - 1),
+                random_range(0, BoardState.get_height() - 1))
             if apple != snake_head:
                 self._snake_positions_list.append(snake_head)
                 break
@@ -109,23 +188,18 @@ class BoardState:
             snake_cur_pos = snake_next_pos
 
     def init_base_snake(self):
+        width, height = BoardState.get_width(), BoardState.get_height()
         self._snake_positions_list = []
-        apple_pos = (TILES_ROW-1, TILES_COL-1)
+        apple_pos = (width - 1, height - 1)
         self._apple_pos = apple_pos
 
         for i in range(self._snake_length):
-            pos_y = i // TILES_ROW
-            pos_x = i % TILES_ROW
+            pos_y = i // width
+            pos_x = i % width
             if pos_y % 2:
-                pos_x = TILES_ROW - 1 - pos_x
+                pos_x = width - 1 - pos_x
             new_snake_pos = (pos_x, pos_y)
             self._snake_positions_list.insert(0, new_snake_pos)
-
-    ''' assign new value to a given position=(x,y) '''
-    ''' deprecated '''
-    def _assign(self, position, value):
-        x, y = position
-        self._2d_board[x][y] = value
 
     @staticmethod
     def get_closest_points(position):
@@ -141,7 +215,7 @@ class BoardState:
     @staticmethod
     def _is_inside_board(position):
         x, y = position
-        return 0 <= x < TILES_ROW and 0 <= y < TILES_COL
+        return 0 <= x < BoardState.get_width() and 0 <= y < BoardState.get_height()
 
     def _is_captured_by_snake(self, position):
         return position in self._snake_positions_list
@@ -154,7 +228,7 @@ class BoardState:
         add_positions = BoardState.add_positions
         for move in BoardState.ALL_MOVES:
             new_pos = add_positions(position, move)
-            if is_in_board(new_pos) and new_pos not in self._snake_positions_list and new_pos!=self._apple_pos:
+            if is_in_board(new_pos) and new_pos not in self._snake_positions_list and new_pos != self._apple_pos:
                 yield new_pos
 
     @staticmethod
@@ -163,11 +237,11 @@ class BoardState:
 
     @staticmethod
     def get_width():
-        return TILES_ROW
+        return TILES_COLS
 
     @staticmethod
     def get_height():
-        return TILES_COL
+        return TILES_ROWS
 
     def get_snake_length(self):
         return self._snake_length
@@ -187,7 +261,7 @@ class BoardState:
     def get_tile(self, position):
         for index, pos in enumerate(self._snake_positions_list):
             if pos == position:
-                return index+1 # index starts from 0, SNAKE_HEAD starts from 1
+                return index+1  # index starts from 0, SNAKE_HEAD starts from 1
         if position == self._apple_pos:
             return BoardState.TILE_APPLE
         return BoardState.TILE_NOTHING
@@ -195,6 +269,7 @@ class BoardState:
     '''
     iterator yielding objects that looks like -
     ((x,y), value)
+    watch out! there is no check that apple_pos doesn't collide with one of the snake's positions!
     '''
     def iterate_snake_positions(self):
         for i, pos in enumerate(self._snake_positions_list):
@@ -203,11 +278,11 @@ class BoardState:
     def iterate_important_positions(self):
         yield from self.iterate_snake_positions()
 
-        if self.get_tile(self._apple_pos) == BoardState.TILE_APPLE:  # not eaten
-            yield self._apple_pos, BoardState.TILE_APPLE
+        # if 1 or self.get_tile(self._apple_pos) == BoardState.TILE_APPLE:  # not eaten # TODO REMOVE
+        yield self._apple_pos, BoardState.TILE_APPLE
 
     def get_full_2d_board(self):
-        result = [[0 for _ in range(TILES_ROW)] for _ in range(TILES_COL)]
+        result = [[0 for _ in range(BoardState.get_height())] for _ in range(BoardState.get_width())]
         for (x, y), value in self.iterate_important_positions():
             result[x][y] = value
         return result
@@ -232,30 +307,40 @@ class BoardState:
     def is_losing_board(self):
         lost = True
         # try to find even one valid move
-        for _ in self._get_all_valid_moves():
-            lost = False
-            break
+        for move in self._get_all_valid_moves():
+            if move != BoardState.MOVE_EMPTY:
+                lost = False
+                break
         return lost
 
+    ''' used as a checking function to see if need a new solver '''
+    def is_critical_change_from(self, prev_board):
+        return self._apple_pos != prev_board.get_apple_position()
+
     def create_new_apple(self):
+        print("create_new_apple() called")
         while True:
-            apple = (random_range(0, TILES_ROW-1), random_range(0, TILES_COL-1))
+            apple = (random_range(0, BoardState.get_width() - 1), random_range(0, BoardState.get_height() - 1))
             if not self._is_captured_by_snake(apple):
                 self._apple_pos = apple
                 break
-        self.leave_tail = True # for the next generations
-        return self._apple_pos # for ease of access to the caller
+        self.leave_tail = True  # for the next generations
+        return self._apple_pos  # for ease of access to the caller
 
     @staticmethod
     def is_at_edge_of_board(pos):
         x, y = pos
-        return x == 0 or x == (TILES_ROW-1) or y == 0 or y == (TILES_COL-1)
+        return x == 0 or x == (TILES_ROWS - 1) or y == 0 or y == (TILES_COLS - 1)
 
     def _get_all_valid_moves(self):
+        moves_yelled = 0
         for move in BoardState.ALL_MOVES:
             new_snake_head = BoardState.add_positions(self.get_snake_head_position(), move)
             if BoardState._is_inside_board(new_snake_head) and not self._is_captured_by_snake(new_snake_head):
                 yield move
+                moves_yelled += 1
+        # if not moves_yelled:
+        #     yield BoardState.MOVE_EMPTY
 
     @staticmethod
     def get_distance_between_positions(p1, p2):
