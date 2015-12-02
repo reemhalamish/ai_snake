@@ -21,19 +21,20 @@ class ThreadAStar(threading.Thread):
         super().__init__()
         self.daemon = True
 
-
         self.return_list = list_to_put_results
         self.board = board_to_solve
         self.debug_id = debugId
         self.start_new_search = False
+        self.need_to_exit = False
         self.idle = False
 
     def run(self):
         while True:
+            if self.need_to_exit:
+                return
             if self.idle:
                 sleep(TIME_TO_SLEEP_SECS)
                 continue
-            print("daemon starts new search!")
             self.start_new_search = False
             first_step = Solution(self.board, 0, heuristic(self.board), [])
             all_options = Heap()
@@ -81,10 +82,8 @@ class ThreadAStar(threading.Thread):
         if not self.return_list:  # already changed by another thread
             self.return_list[:] = results
         threadLock.release()
-        print(self.debug_id, "returning")
 
     def solve_new_search(self, new_board, new_list_to_put_results):
-        print("thread got new job to solve")
         threadLock.acquire()
         self.return_list = new_list_to_put_results
         self.board = new_board
@@ -92,6 +91,9 @@ class ThreadAStar(threading.Thread):
         self.idle = False
 
         threadLock.release()
+
+    def exit_async(self):
+        self.need_to_exit = True
 
 ''' heuristics and helper functions '''
 

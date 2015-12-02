@@ -1,7 +1,7 @@
 from tkinter import *
 from boardstate import BoardState
 TILE_SIZE = 20
-FRAMES_PER_SECOND = 30
+FRAMES_PER_SECOND = 35
 MS_BETWEEN_FRAMES = 1000//FRAMES_PER_SECOND
 
 class GUI(Frame):
@@ -42,7 +42,9 @@ class GUI(Frame):
             for x, value in enumerate(row):
                 if value > BoardState.TILE_SNAKE_BODY_DEFAULT:
                     value = BoardState.TILE_SNAKE_BODY_DEFAULT
-                w = Label(master, image=pic_to_tkimage[board_to_pic[value]])
+                w = Button(master,
+                           image=pic_to_tkimage[board_to_pic[value]],
+                           command=lambda gui=self, pos=(y, x): GUI.click(gui, pos)) # TODO only patch, resolve!
                 w.grid(row=y, column=x)
                 self._labels[(x, y)] = w
         #
@@ -88,13 +90,16 @@ class GUI(Frame):
         self._labels[new_board.get_snake_head_position()].configure(image=pic_to_tkimage[board_to_picname[SNAKE_HEAD]])
         '''
 
-    def redraw_apple(self):
-        APPLE = BoardState.TILE_APPLE
+    def redraw_apple(self, pos_to_erase = None):
+        APPLE, NOTHING = BoardState.TILE_APPLE, BoardState.TILE_NOTHING
         pic_to_tkimage, board_to_picname = self._all_pics, GUI.BOARD_TO_PICNAME
         self._labels[self._board.get_apple_position()].configure(image=pic_to_tkimage[board_to_picname[APPLE]])
+        if pos_to_erase:
+            self._labels[pos_to_erase].configure(image=pic_to_tkimage[board_to_picname[NOTHING]])
+
 
     def next_frame(self):
-        #if self._board.is_final_board():
+        # if self._board.is_final_board():
         if self._board.is_winning_board():
             self._board.create_new_apple()
             # # self.redraw_apple()
@@ -108,12 +113,20 @@ class GUI(Frame):
         self._board = next_board
         self.after(MS_BETWEEN_FRAMES, self.next_frame)
 
+    @staticmethod
+    def click(self, position):
+        old_apple_pos = self._board.get_apple_position()
+        self._board.create_new_apple(position)
+        self.redraw_apple(pos_to_erase=old_apple_pos)
+        self._snake_ai.get_next_move(self._board)
+
     def quit(self, event=None):
         self._master.quit()
+        self._snake_ai.quit()
 
     BOARD_TO_PICNAME = {
-        BoardState.TILE_APPLE  : "green",
-        BoardState.TILE_SNAKE_HEAD : "red",
-        BoardState.TILE_SNAKE_BODY_DEFAULT : "purple",
-        BoardState.TILE_NOTHING: "white"
+        BoardState.TILE_APPLE:              "green",
+        BoardState.TILE_SNAKE_HEAD:         "red",
+        BoardState.TILE_SNAKE_BODY_DEFAULT: "purple",
+        BoardState.TILE_NOTHING:            "white"
     }

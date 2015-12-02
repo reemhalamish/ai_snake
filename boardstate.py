@@ -317,8 +317,13 @@ class BoardState:
     def is_critical_change_from(self, prev_board):
         return self._apple_pos != prev_board.get_apple_position()
 
-    def create_new_apple(self):
-        print("create_new_apple() called")
+    def create_new_apple(self, position = None):
+        if position:
+            if not self._is_captured_by_snake(position):
+                self._apple_pos = position
+            return
+
+        # else: a new apple has been created because a snake bytes the old one
         while True:
             apple = (random_range(0, BoardState.get_width() - 1), random_range(0, BoardState.get_height() - 1))
             if not self._is_captured_by_snake(apple):

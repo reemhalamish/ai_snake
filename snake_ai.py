@@ -23,7 +23,6 @@ class SnakeAI:
                 self.start_new_task_for_solver(board)
                 self.board = board
             elif self.moves_since_last_solver_activated >= CRITICAL_AMOUNT_OF_MOVES_TO_OPEN_NEW_SOLVER:
-                print("too many moves passed, starting a new search")
                 self.start_new_task_for_solver(board)
                 self.moves_since_last_solver_activated = 0
 
@@ -38,13 +37,14 @@ class SnakeAI:
     def initiate_solver(self, board_state):
         solver_thread = ThreadAStar(board_state, self.moves_to_give, self.solvers_initiated)
         solver_thread.start()  # notice that start() is a method from Thread, which calls run() that we defined :)
-        print("solver_thread", solver_thread)
         return solver_thread
 
     def start_new_task_for_solver(self, new_board):
         self.moves_to_give = []
         self.solver_daemon.solve_new_search(new_board, self.moves_to_give)
 
+    def quit(self):
+        self.solver_daemon.exit_async()
     '''
 
     @staticmethod
