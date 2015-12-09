@@ -17,13 +17,12 @@ threadLock = threading.Lock()
 
 
 class ThreadAStar(threading.Thread):
-    def __init__(self, board_to_solve, list_to_put_results, debugId=0):
-        super().__init__()
+    def __init__(self, board_to_solve, list_to_put_results):
+        super(ThreadAStar, self).__init__()
         self.daemon = True
 
         self.return_list = list_to_put_results
         self.board = board_to_solve
-        self.debug_id = debugId
         self.start_new_search = False
         self.need_to_exit = False
         self.idle = False
@@ -31,7 +30,7 @@ class ThreadAStar(threading.Thread):
     def run(self):
         while True:
             if self.need_to_exit:
-                return
+                break
             if self.idle:
                 sleep(TIME_TO_SLEEP_SECS)
                 continue
@@ -40,19 +39,7 @@ class ThreadAStar(threading.Thread):
             all_options = Heap()
             all_options.push(first_step)
 
-            # start = time()
             while all_options and not self.start_new_search:  # something left at the pool and no solution has been found yet: # and not self.return_list
-                # end = time()
-                # if (end-start) > TIME_TO_SOLVE_SECS:
-                    # you tried, you failed, admit it.
-                    # print("out of time, with snake len {}, snake head {}, apple pos {}".format(
-                    #     self.board.get_snake_length(),
-                    #     self.board.get_snake_head_position(),
-                    #     self.board.get_apple_position()
-                    # ))
-                    # print(self.debug_id, "failed returning")
-                    # return
-
                 cur_solution = all_options.pop()
                 if cur_solution.board.is_winning_board():
                     # print ("found a way to eat the apple used only {} vertices!".format(all_options.get_pushed_amount()))
@@ -75,7 +62,7 @@ class ThreadAStar(threading.Thread):
             self.idle = True
             # continue
 
-        print("daemon dies now")
+        print("ai daemon dies now")
 
     def return_results(self, results):
         threadLock.acquire()
@@ -212,18 +199,18 @@ def _h_rect_is_blocked(rect, start_pos, end_pos):
     for line in rect:
         found_obstacle = False
         for i, x in enumerate(line):
-            if x: # found an obstacle
+            if x:  # found an obstacle
                 lines.append(i)
                 found_obstacle = True
                 break
-        if not found_obstacle: # at the whole line
-            test_lines = True # clear area!
+        if not found_obstacle:   # at the whole line
+            test_lines = True   # clear area!
             break
         for i, x in enumerate(reversed(line)):
-            if x: # found an obstacle
+            if x:  # found an obstacle
                 lines_reversed.append(i)
                 break
-    if not test_lines: # passed yet
+    if not test_lines:  # passed yet
         lines_test_passed = all([abs(o1 - o2) > 1 for o1, o2 in zip(lines, lines[1:])])
         reversed_lines_test_passed = all([abs(o1 - o2) > 1 for o1, o2 in zip(lines_reversed, lines_reversed[1:])])
         if not (reversed_lines_test_passed and lines_test_passed): # there is a continuous obstacle
@@ -240,7 +227,7 @@ def _h_rect_is_blocked(rect, start_pos, end_pos):
                 cols.append(i)
                 found_obstacle = True
                 break
-        if not found_obstacle: # there is a free column + reached here means lines are free two
+        if not found_obstacle:  # there is a free column + reached here means lines are free two
             return False
         for i in reversed(range(len(rect))):
             val = rect[i][j]

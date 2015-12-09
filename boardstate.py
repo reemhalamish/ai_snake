@@ -11,9 +11,9 @@ TILES_ROWS = 10
 TILES_COLS = 10
 TILES_DEPTHS = 10
 
-SNAKE_INIT_LENGTH = 5
+SNAKE_INIT_LENGTH = 3
 SNAKE_MAX_LENGTH = 70
-MAX_TURNS_SAVE_LEAVE_TAIL = 4
+MAX_TURNS_SAVE_LEAVE_TAIL = 9
 
 
 class BoardState:
@@ -78,59 +78,6 @@ class BoardState:
 
         if leave_prev_tail:
             self.leave_tail = leave_prev_tail
-
-        # if empty_move_now and snake_len > SNAKE_INIT_LENGTH:  # shorten the tail now, deal with it later
-        #     leave_prev_tail += 1
-        # else:  # regular move
-        #     snake_positions_list.insert(0, snake_head_pos)
-        #     # if leave_prev_tail:
-        #     #     leave_prev_tail -= 1
-        #     # else:
-        # if not empty_move_now and leave_prev_tail:
-        #     snake_positions_list = snake_positions_list[:-1]
-        #     leave_prev_tail -= 1
-        #
-        # if leave_prev_tail:
-        #     self.leave_tail = leave_prev_tail +1 -1
-        # # else:   # just a regular move
-        # # snake_positions_list = snake_positions_list[:-1]
-
-
-        #
-        # if
-        #     print("empty move detected")
-        #     if leave_prev_tail:
-        #         print("should leave prev tail")
-        #     # dont add the head.
-        #
-        #     # from now on, there are actions to leave for the next generation
-        #     has_more_room = any([
-        #         BoardState._is_inside_board(
-        #             BoardState.add_positions(move, snake_head_pos)) and
-        #         BoardState.add_positions(move, snake_head_pos) not in snake_positions_list
-        #
-        #         for move in BoardState.ALL_MOVES])
-        #
-        #     if leave_prev_tail and has_more_room:  # if you can deal with growing your tail next board
-        #         # then pass the order to siblings to deal with
-        #         self.leave_tail = True
-        #
-        # else:  # empty move, dont move
-        #     snake_positions_list.insert(0, snake_head_pos)
-
-        #     # one tile not to move
-        #     snake_len -= 1
-        #     # but if you should have grow your tail, let the next board do that
-        #     # if leave_prev_tail:
-        #     #     self.leave_tail = True
-        #
-        # else:
-        #     snake_positions_list.insert(0, snake_head_pos)
-        #
-        # if leave_prev_tail:
-        #     snake_len += 1
-        # else:
-        #     snake_positions_list = snake_positions_list[:-1]
 
         # commit changes to the new board state
         self._snake_length = len(snake_positions_list)
@@ -276,16 +223,19 @@ class BoardState:
                     yield (pos, i+1)  # i starts from 0, SNAKE_HEAD starts from 1
 
     def iterate_important_positions(self):
-        yield from self.iterate_snake_positions()
-
-        # if 1 or self.get_tile(self._apple_pos) == BoardState.TILE_APPLE:  # not eaten # TODO REMOVE
+        # python3        yield from self.iterate_snake_positions()
+        for i, pos in self.iterate_snake_positions():
+            yield i, pos
         yield self._apple_pos, BoardState.TILE_APPLE
 
+
+    ''' deprecated '''
     def get_full_2d_board(self):
         result = [[0 for _ in range(BoardState.get_height())] for _ in range(BoardState.get_width())]
         for (x, y), value in self.iterate_important_positions():
             result[x][y] = value
         return result
+
 
     '''
     generates tuples in the pattern -
@@ -330,7 +280,6 @@ class BoardState:
                 self._apple_pos = apple
                 break
         self.leave_tail = True  # for the next generations
-        return self._apple_pos  # for ease of access to the caller
 
     @staticmethod
     def is_at_edge_of_board(pos):
