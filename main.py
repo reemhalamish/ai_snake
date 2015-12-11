@@ -1,17 +1,15 @@
 import GUI
 from boardstate import BoardState
-from snake_ai import SnakeAI
-from thread_laser_capture import LaserTracker
+from manager_ai import SnakeAIManager
+from manager_laser import LaserManager
 
 # python3 from tkinter import Tk
 from Tkinter import Tk
-'''
-laser_tracker = LaserTracker()
-laser_tracker.run()
 
-'''
+laser_manager = LaserManager(BoardState.get_cols(), BoardState.get_rows())
+laser_manager.start_when_ready()   # starts when all 4 corners captured
 init_board = BoardState()
-snake_mind = SnakeAI(init_board)
+snake_mind = SnakeAIManager(init_board)
 root = Tk()
-GUI.GUI(root, init_board, snake_mind)
+GUI.GUI(root, init_board, snake_mind, laser_manager)
 root.mainloop()

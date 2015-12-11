@@ -7,8 +7,8 @@ TILES_COLS = 30
 '''
 
 # normal
-TILES_ROWS = 10
-TILES_COLS = 10
+TILES_ROWS = 12
+TILES_COLS = 18
 TILES_DEPTHS = 10
 
 SNAKE_INIT_LENGTH = 3
@@ -116,14 +116,14 @@ class BoardState:
         self._apple_pos = apple_pos
 
     def init_random_snake(self):
-        apple = (random_range(0, BoardState.get_width() - 1), random_range(0, BoardState.get_height() - 1))
+        apple = (random_range(0, BoardState.get_cols() - 1), random_range(0, BoardState.get_rows() - 1))
         self._apple_pos = apple
 
         snake_head = None
         while True:
             snake_head = (
-                random_range(0, BoardState.get_width() - 1),
-                random_range(0, BoardState.get_height() - 1))
+                random_range(0, BoardState.get_cols() - 1),
+                random_range(0, BoardState.get_rows() - 1))
             if apple != snake_head:
                 self._snake_positions_list.append(snake_head)
                 break
@@ -135,7 +135,7 @@ class BoardState:
             snake_cur_pos = snake_next_pos
 
     def init_base_snake(self):
-        width, height = BoardState.get_width(), BoardState.get_height()
+        width, height = BoardState.get_cols(), BoardState.get_rows()
         self._snake_positions_list = []
         apple_pos = (width - 1, height - 1)
         self._apple_pos = apple_pos
@@ -162,7 +162,7 @@ class BoardState:
     @staticmethod
     def _is_inside_board(position):
         x, y = position
-        return 0 <= x < BoardState.get_width() and 0 <= y < BoardState.get_height()
+        return 0 <= x < BoardState.get_cols() and 0 <= y < BoardState.get_rows()
 
     def _is_captured_by_snake(self, position):
         return position in self._snake_positions_list
@@ -183,11 +183,11 @@ class BoardState:
         return pos_a[0] + pos_b[0], pos_a[1] + pos_b[1]
 
     @staticmethod
-    def get_width():
+    def get_cols():
         return TILES_COLS
 
     @staticmethod
-    def get_height():
+    def get_rows():
         return TILES_ROWS
 
     def get_snake_length(self):
@@ -231,7 +231,7 @@ class BoardState:
 
     ''' deprecated '''
     def get_full_2d_board(self):
-        result = [[0 for _ in range(BoardState.get_height())] for _ in range(BoardState.get_width())]
+        result = [[0 for _ in range(BoardState.get_rows())] for _ in range(BoardState.get_cols())]
         for (x, y), value in self.iterate_important_positions():
             result[x][y] = value
         return result
@@ -275,7 +275,7 @@ class BoardState:
 
         # else: a new apple has been created because a snake bytes the old one
         while True:
-            apple = (random_range(0, BoardState.get_width() - 1), random_range(0, BoardState.get_height() - 1))
+            apple = (random_range(0, BoardState.get_cols() - 1), random_range(0, BoardState.get_rows() - 1))
             if not self._is_captured_by_snake(apple):
                 self._apple_pos = apple
                 break

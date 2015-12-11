@@ -1,28 +1,19 @@
 import threading
-from time import time, sleep
-
-
-class ThreadLaserCapture(threading.Thread):
-    def __init__(self):
-        super(ThreadLaserCapture, self).__init__()
-        self.daemon = True
-
-        self.laser_place = None  # will be re-captured at the start of turning the camera on
-
-    def run(self):
-        pass
-
-
-#! /usr/bin/env python
-import argparse
 import cv2.cv as cv
 import cv2
 import sys
+import np
+from time import sleep
+
+CAMERA_TO_CHOOSE = 0  # device number. 0 for laptop is usually the frontCam
+SLEEP_TIME_BETWEEN_FRAMES_MS = 40
+SLEEP_TIME_BETWEEN_STAGES_SEC = 5
+
+STAGE_0_DISPLAY_MOVEMENT_AND_CATCH_CORNERS, STAGE_1_WORK_IN_BACKGROUND = 0, 1
 
 
-class LaserTracker(object):
-
-    def __init__(self, cam_width=640, cam_height=480, hue_min=20, hue_max=160,
+class ThreadLaserCapture(threading.Thread):
+    def __init__(self, manager, cam_width=640, cam_height=480, hue_min=20, hue_max=160,
                  sat_min=100, sat_max=255, val_min=200, val_max=256,
                  display_thresholds=False):
         """
@@ -44,6 +35,17 @@ class LaserTracker(object):
 
         """
 
+        super(ThreadLaserCapture, self).__init__()
+        self.daemon = True
+
+        self.laser_place = None  # will be re-captured at the start of turning the camera on
+        self.manager = manager
+        self.exit = False
+        self.stage = STAGE_0_DISPLAY_MOVEMENT_AND_CATCH_CORNERS
+
+        self.corners = [None, None, None, None]
+        self.ave_x = self.ave_y = None   # temp registers for the corner capture
+
         self.cam_width = cam_width
         self.cam_height = cam_height
         self.hue_min = hue_min
@@ -52,8 +54,6 @@ class LaserTracker(object):
         self.sat_max = sat_max
         self.val_min = val_min
         self.val_max = val_max
-        self.display_thresholds = display_thresholds
-
         self.capture = None  # camera capture device
         self.channels = {
             'hue': None,
@@ -61,6 +61,15 @@ class LaserTracker(object):
             'value': None,
             'laser': None,
         }
+
+    def setup_windows(self):
+        sys.stdout.write("Using OpenCV version: {0}\n".format(cv2.__version__))
+
+        # create output windows
+        self.create_and_position_window('LaserPointer', 0, 0)
+        # self.create_fullscreen_window('LaserPointer')  # TODO SHOW will be usefull
+        self.create_and_position_window('RGB_VideoFrame',
+            10 + self.cam_width, 0)
 
     def create_and_position_window(self, name, xpos, ypos):
         """Creates a named widow placing it on the screen at (xpos, ypos)."""
@@ -71,12 +80,9 @@ class LaserTracker(object):
         # Move to (xpos,ypos) on the screen
         cv2.moveWindow(name, xpos, ypos)
 
-    def create_fullscreen_window(self, name):
-        cv2.namedWindow(name, cv2.WND_PROP_FULLSCREEN)
-        cv2.setWindowProperty(name, cv2.WND_PROP_FULLSCREEN, cv2.cv.CV_WINDOW_FULLSCREEN)
-
-    def setup_camera_capture(self, device_num=1):
-        """Perform camera setup for the device number (default device = 0).
+    def setup_camera_capture(self, device_num=CAMERA_TO_CHOOSE):
+        """
+        Perform camera setup for the device number (default device = 0).
         Returns a reference to the camera Capture object.
 
         """
@@ -91,7 +97,7 @@ class LaserTracker(object):
         # Try to start capturing frames
         self.capture = cv2.VideoCapture(device)
         if not self.capture.isOpened():
-            sys.stderr.write("Faled to Open Capture device. Quitting.\n")
+            sys.stderr.write("Faled to Open Capture device. thread quitting.\nplease exit the main thread as well")
             sys.exit(1)
 
         # set the wanted image size from the camera
@@ -115,25 +121,26 @@ class LaserTracker(object):
         elif channel == "value":
             minimum = self.val_min
             maximum = self.val_max
+        else:   # will never happen
+            minimum = maximum = None
 
         (t, tmp) = cv2.threshold(
-            self.channels[channel], # src
-            maximum, # threshold value
-            0, # we dont care because of the selected type
+            self.channels[channel],  # src
+            maximum,  # threshold value
+            0,  # we dont care because of the selected type
             cv2.THRESH_TOZERO_INV #t type
         )
 
         (t, self.channels[channel]) = cv2.threshold(
-            tmp, # src
-            minimum, # threshold value
-            255, # maxvalue
+            tmp,  # src
+            minimum,  # threshold value
+            255,  # maxvalue
             cv2.THRESH_BINARY # type
         )
 
         if channel == 'hue':
             # only works for filtering red color because the range for the hue is split
             self.channels['hue'] = cv2.bitwise_not(self.channels['hue'])
-
 
     def detect(self, frame):
         hsv_img = cv2.cvtColor(frame, cv.CV_BGR2HSV)
@@ -154,20 +161,32 @@ class LaserTracker(object):
             self.channels['hue'],
             self.channels['value']
         )
-        self.channels['laser'] = cv2.bitwise_and(
+        self.channels['laser'] = cv2.bitwise_and(  # use !saturation as it gets best results
             cv2.bitwise_not(self.channels['saturation']),
             self.channels['laser']
         )
 
-        # Merge the HSV components back together.
-        hsv_image = cv2.merge([
-            self.channels['hue'],
-            cv2.bitwise_not(self.channels['saturation']),
-            self.channels['value'],
-        ])
-        print hsv_image[1,1]
+        if self.stage == STAGE_0_DISPLAY_MOVEMENT_AND_CATCH_CORNERS:
+            # Merge the HSV components back together.
+            hsv_image = cv2.merge([
+                self.channels['laser'],
+                self.channels['laser'],
+                self.channels['laser'],
+            ])
+            return hsv_image
+        return None
 
-        return hsv_image
+    def work_on_detected(self):
+        cpy = np.copy(self.channels['laser'])
+        height, width = cpy.shape
+
+        indices = np.transpose(np.where(cpy > 0))
+        if indices.any():
+            sum_y, sum_x = np.sum(indices, axis=0)
+            self.ave_y, self.ave_x = sum_y/len(indices), sum_x/len(indices)
+
+            print("average x:", self.ave_x, "average y:", self.ave_y)
+            self.manager.update_player_place((self.ave_x, self.ave_y))
 
     def display(self, img, frame):
         """Display the combined image and (optionally) all other image channels
@@ -175,45 +194,57 @@ class LaserTracker(object):
         """
         cv2.imshow('RGB_VideoFrame', frame)
         cv2.imshow('LaserPointer', self.channels['laser'])
-        if self.display_thresholds:
-            cv2.imshow('Thresholded_HSV_Image', img)
-            cv2.imshow('Hue', self.channels['hue'])
-            cv2.imshow('Saturation', self.channels['saturation'])
-            cv2.imshow('Value', self.channels['value'])
 
+        key = cv2.waitKey(SLEEP_TIME_BETWEEN_FRAMES_MS)
+        if key == ord('1'):
+            self.corners[0] = self.ave_x, self.ave_y
+        elif key == ord('2'):
+            self.corners[1] = self.ave_x, self.ave_y
+        elif key == ord('3'):
+            self.corners[2] = self.ave_x, self.ave_y
+        elif key == ord('4'):
+            self.corners[3] = self.ave_x, self.ave_y
+        elif key == ord('q'):
+            cv2.destroyAllWindows()
+            print("As the user asked, Thread quitting. please quit the main thread as well")
+            exit()
 
-    def setup_windows(self):
-        sys.stdout.write("Using OpenCV version: {0}\n".format(cv2.__version__))
-
-        # create output windows
-        self.create_and_position_window('LaserPointer', 0, 0)
-        self.create_and_position_window('RGB_VideoFrame', 10 + self.cam_width, 0)
-        if self.display_thresholds:
-            self.create_and_position_window('Thresholded_HSV_Image', 10, 10)
-            self.create_and_position_window('Hue', 20, 20)
-            self.create_and_position_window('Saturation', 30, 30)
-            self.create_and_position_window('Value', 40, 40)
-
+    def all_corners_are_ready(self):
+        ready = True
+        for corner in self.corners:
+            if not corner:
+                ready = False
+        return ready
 
     def run(self):
         # Set up window positions
         self.setup_windows()
         # Set up the camera capture
         self.setup_camera_capture()
-
-        while True:
+        while not self.exit:
             # 1. capture the current image
             success, frame = self.capture.read()
             if not success: # no image captured... end the processing
-                sys.stderr.write("Could not read camera frame. Quitting\n")
+                sys.stderr.write("Could not read camera frame. thread Quitting.\nplease quit the main thread as well")
                 sys.exit(1)
 
             hsv_image = self.detect(frame)
-            self.display(hsv_image, frame)
+            self.work_on_detected()
 
-            print(self.get_center_pixel(hsv_image))
+            if self.stage == STAGE_0_DISPLAY_MOVEMENT_AND_CATCH_CORNERS:
+                self.display(hsv_image, frame)
+                if self.all_corners_are_ready():
+                    cv2.destroyAllWindows()
+                    self.manager.init_calculator(*self.corners)
+                    sleep(SLEEP_TIME_BETWEEN_STAGES_SEC)
+                    self.stage = STAGE_1_WORK_IN_BACKGROUND
 
-    def get_center_pixel(self, laser_image):
-        height, width, channels = laser_image.shape
-        height, width, channels
+            elif self.stage == STAGE_1_WORK_IN_BACKGROUND:
+                sleep(ms_to_sec(SLEEP_TIME_BETWEEN_FRAMES_MS))
+        print("laser capture daemon dies now")
 
+    def exit_async(self):
+        self.exit = True
+
+def ms_to_sec(ms):
+    return 0.001 * ms

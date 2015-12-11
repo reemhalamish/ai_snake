@@ -16,7 +16,7 @@ class Heap:
         return solution
 
     def __bool__(self):
-        return bool(self.heap)
+        return len(self.heap) > 0
 
     def get_pushed_amount(self):
         return self.pushed

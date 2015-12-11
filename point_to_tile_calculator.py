@@ -151,9 +151,9 @@ class PointToTileCalculator():
         yahas = (px - p_left) / (p_right - p_left)
         cur_col = math.floor(yahas * cols)
 
-        # # stay in the world of snake
-        # cur_col = max(cur_col, 0)
-        # cur_col = min(cur_col, cols-1)
+        # stay in the world of snake (or at least, just right outside)
+        cur_col = max(cur_col, -1)
+        cur_col = min(cur_col, cols)
 
         return int(cur_col)
 
@@ -171,9 +171,9 @@ class PointToTileCalculator():
         yahas = (py - p_high) / (p_low - p_high)
         cur_row = math.floor(yahas * rows)
 
-        # # stay in the world of snake
-        # cur_row = max(cur_row, 0)
-        # cur_row = min(cur_row, rows-1)
+        # stay in the world of snake (or at least, just right outside)
+        cur_row = max(cur_row, -1)
+        cur_row = min(cur_row, rows)
 
         return int(cur_row)
 
@@ -274,18 +274,18 @@ def line_intersection(line1, line2):
     ))
     return x, y
 
-
-a = PointToTileCalculator(4, 3, (0,0), (4,0), (0,4), (4,4))
-print(a.get_tile((0.8, 0.8)))
-print(a.get_tile((-1, -1)))
-b = PointToTileCalculator(4, 3, (1,0), (3,0), (1,3), (3,5))
-print(b.get_tile((4, 30)))
-b = PointToTileCalculator(4, 3, (1.0000001,0), (3,0), (1,8), (3,4))
-print(b.get_tile((2, 4.0)))
-print(b.get_tile((2.999, 4.0)))
-print(b.get_tile((2.999, 0)))
-print(b.get_tile((2.999, 2.2)))
-print(b.get_tile((4.4, 2)))
-print(b.get_tile((4.4, -0.001)))
+# TESTS
+# a = PointToTileCalculator(4, 3, (0,0), (4,0), (0,4), (4,4))
+# print(a.get_tile((0.8, 0.8)))
+# print(a.get_tile((-1, -1)))
+# b = PointToTileCalculator(4, 3, (1,0), (3,0), (1,3), (3,5))
+# print(b.get_tile((4, 30)))
+# b = PointToTileCalculator(4, 3, (1.0000001,0), (3,0), (1,8), (3,4))
+# print(b.get_tile((2, 4.0)))
+# print(b.get_tile((2.999, 4.0)))
+# print(b.get_tile((2.999, 0)))
+# print(b.get_tile((2.999, 2.2)))
+# print(b.get_tile((4.4, 2)))
+# print(b.get_tile((4.4, -0.001)))
 # p0x, p0y, p1x, p1y, p2x, p2y, p3x, p3y = float(p0[X]), float(p0[Y]), float(p1[X]), float(p1[Y]), float(p2[X]), float(p2[Y]), float(p3[X]), float(p3[Y])
 
