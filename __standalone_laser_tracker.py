@@ -7,7 +7,8 @@ import np
 from time import time
 
 CAMERA_TO_CHOOSE = 0
-
+# default camera in a laptop is usually the front camera. if you're using a laptop and
+# a webcam try to change this value to 1
 TIME_BETWEEN_FRAMES_MS = 50
 
 topLeft = None
@@ -56,10 +57,6 @@ class LaserTracker(object):
             'value': None,
             'laser': None,
         }
-
-
-        self.rows = 3
-        self.cols = 4
 
     def create_and_position_window(self, name, xpos, ypos):
         """Creates a named widow placing it on the screen at (xpos, ypos)."""
@@ -240,12 +237,8 @@ class LaserTracker(object):
             sum_y, sum_x = np.sum(indices, axis=0)
             ave_y, ave_x = sum_y/len(indices), sum_x/len(indices)
 
-            ROWS, COLS = self.rows, self.cols
-            tile_x = ave_x // (width/COLS)
-            tile_y = ave_y // (height/ROWS)
-
-            print("average x:", ave_x, "tile_x:", tile_x)
-            print("average y:", ave_y, "tile_y:", tile_y)
+            print("average x:", ave_x)
+            print("average y:", ave_y)
             self.ave_x = ave_x
             self.ave_y = ave_y
 
@@ -323,5 +316,3 @@ if __name__ == '__main__':
         display_thresholds=params.display
     )
     tracker.run()
-
-

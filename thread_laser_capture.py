@@ -5,8 +5,8 @@ import sys
 import np
 from time import sleep
 
-CAMERA_TO_CHOOSE = 0  # device number. 0 for laptop is usually the frontCam
-SLEEP_TIME_BETWEEN_FRAMES_MS = 40
+CAMERA_TO_CHOOSE = 1  # device number. 0 for laptop is usually the frontCam, so for webCam use 1
+SLEEP_TIME_BETWEEN_FRAMES_MS = 5
 SLEEP_TIME_BETWEEN_STAGES_SEC = 5
 
 STAGE_0_DISPLAY_MOVEMENT_AND_CATCH_CORNERS, STAGE_1_WORK_IN_BACKGROUND = 0, 1
@@ -97,7 +97,8 @@ class ThreadLaserCapture(threading.Thread):
         # Try to start capturing frames
         self.capture = cv2.VideoCapture(device)
         if not self.capture.isOpened():
-            sys.stderr.write("Faled to Open Capture device. thread quitting.\nplease exit the main thread as well")
+            sys.stderr.write("Faled to Open Capture device. thread quitting.\n")
+            self.manager.laser_daemon_encountered_exit = True
             sys.exit(1)
 
         # set the wanted image size from the camera
@@ -185,7 +186,7 @@ class ThreadLaserCapture(threading.Thread):
             sum_y, sum_x = np.sum(indices, axis=0)
             self.ave_y, self.ave_x = sum_y/len(indices), sum_x/len(indices)
 
-            print("average x:", self.ave_x, "average y:", self.ave_y)
+            # print("average x:", self.ave_x, "average y:", self.ave_y)
             self.manager.update_player_place((self.ave_x, self.ave_y))
 
     def display(self, img, frame):
@@ -206,7 +207,8 @@ class ThreadLaserCapture(threading.Thread):
             self.corners[3] = self.ave_x, self.ave_y
         elif key == ord('q'):
             cv2.destroyAllWindows()
-            print("As the user asked, Thread quitting. please quit the main thread as well")
+            print("As the user requested, Laser-capture thread quitting.")
+            self.manager.laser_daemon_encountered_exit = True
             exit()
 
     def all_corners_are_ready(self):
@@ -225,7 +227,8 @@ class ThreadLaserCapture(threading.Thread):
             # 1. capture the current image
             success, frame = self.capture.read()
             if not success: # no image captured... end the processing
-                sys.stderr.write("Could not read camera frame. thread Quitting.\nplease quit the main thread as well")
+                sys.stderr.write("Could not read camera frame. thread Quitting.\n")
+                self.manager.laser_daemon_encountered_exit = True
                 sys.exit(1)
 
             hsv_image = self.detect(frame)

@@ -38,14 +38,13 @@ class ThreadAStar(threading.Thread):
             first_step = Solution(self.board, 0, heuristic(self.board), [])
             all_options = Heap()
             all_options.push(first_step)
+            all_options.push(first_step)
 
-            while all_options and not self.start_new_search:  # something left at the pool and no solution has been found yet: # and not self.return_list
+            while len(all_options) > 1 and not self.start_new_search:
+                # something left at the pool
+                # and no solution has been found yet
                 cur_solution = all_options.pop()
                 if cur_solution.board.is_winning_board():
-                    # print ("found a way to eat the apple used only {} vertices!".format(all_options.get_pushed_amount()))
-                    # end = time()
-                    # print ("calculations took {} ms".format(1000 * (end-start)))
-                    # print("way to go: {}".format("".join([BoardState.string(move) + " --> " for move in cur_solution.moves_list])))
                     self.return_results(cur_solution.moves_list)
                     self.idle = True
                     break
@@ -60,14 +59,13 @@ class ThreadAStar(threading.Thread):
                         all_options.push(Solution(n_board, n_walked_so_far, n_heuristic_v, n_moves_list))
             # didn't find any solution
             self.idle = True
-            # continue
+            continue
 
         print("ai daemon dies now")
 
     def return_results(self, results):
         threadLock.acquire()
-        if not self.return_list:  # already changed by another thread
-            self.return_list[:] = results
+        self.return_list[:] = results
         threadLock.release()
 
     def solve_new_search(self, new_board, new_list_to_put_results):
@@ -76,7 +74,6 @@ class ThreadAStar(threading.Thread):
         self.board = new_board
         self.start_new_search = True
         self.idle = False
-
         threadLock.release()
 
     def exit_async(self):

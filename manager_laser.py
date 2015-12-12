@@ -18,9 +18,13 @@ class LaserManager:
         self.frames_since_last_change = 0
         self.laser_capture_daemon = ThreadLaserCapture(self)
         self.laser_capture_daemon.start()
+        self.laser_daemon_encountered_exit = False
 
     def start_when_ready(self):
         while not self.calc_player_place_to_snake_pos:
+            if self.laser_daemon_encountered_exit:
+                print("quitting main thread")
+                exit()
             sleep(TIME_TO_SLEEP_SECS)
         return
 
@@ -33,6 +37,13 @@ class LaserManager:
     def get_player_position(self):
         self.frames_since_last_change += 1
         return self.calc_player_place_to_snake_pos.get_tile(self.player_place)
+
+    def get_player_position_if_valid(self):
+        cols, rows = self.columns, self.rows
+        player_pos = x,y = self.get_player_position()
+        if not (0 <= x < cols and 0 <= y < rows):
+            return None
+        return player_pos
 
     def update_player_place(self, new_place):
         self.player_place = new_place

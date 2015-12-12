@@ -2,7 +2,8 @@
 from Tkinter import Frame, Canvas, PhotoImage
 from boardstate import BoardState
 # TILE_SIZE = 20
-FRAMES_PER_SECOND = 35
+FRAMES_PER_SECOND = 33
+UPDATE_LASER_EVERY_NTH_MS = 10
 MS_BETWEEN_FRAMES = 1000//FRAMES_PER_SECOND
 BORDER_BETWEEN_TILES_PXL = 5
 
@@ -29,8 +30,8 @@ class GUI(Frame):
         master.title("Snake")
         master.attributes("-fullscreen", True)
         master.configure(background='white')
-        master.bind('<Escape>', lambda e: self.quit())
-        master.bind('q', lambda e: self.quit())
+        master.bind('<Escape>', lambda e: self.quit_all())
+        master.bind('q', lambda e: self.quit_all())
         master.bind('d', lambda e: self.debug())
         master.bind('s', lambda e: self.start_snake())
 
@@ -49,7 +50,7 @@ class GUI(Frame):
         canvas = self._canvas
         rows, cols = self._board.get_rows(), self._board.get_cols()
         img = self.laser_photo = PhotoImage(file='pics/black_640_480.gif')
-        self.pos_to_canvas_handles['laser_start'] = canvas.create_image(0, 0, image=self.laser_photo, anchor='nw')
+        self.pos_to_canvas_handles['laser_start_pic'] = canvas.create_image(0, 0, image=self.laser_photo, anchor='nw')
         for y in range(img.height()):
             for x in range(img.width()):
                 val = self._laser_manager.calculate_pixel((x, y))
@@ -62,17 +63,15 @@ class GUI(Frame):
                 val_x = val_x * 255 // cols
                 val_y = val_y * 255 // rows
                 color = '#00' + format(val_x, '02x') + format(val_y, '02x')
-                img.put(color, (x,y))
-
-
-
+                img.put(color, (x, y))
 
     def start_snake(self, _=None):
         if self.laser_photo:
-            self._canvas.delete(self.pos_to_canvas_handles['laser_start'])
+            self._canvas.delete(self.pos_to_canvas_handles.pop('laser_start_pic'))
             self.laser_photo = None
             self.draw_first_board()
             self.after(MS_BETWEEN_FRAMES, self.next_frame)
+            self.after(UPDATE_LASER_EVERY_NTH_MS, self.update_laser)
 
     def draw_first_board(self):
         master, board = self._master, self._board
@@ -121,15 +120,22 @@ class GUI(Frame):
             self.pos_to_canvas_handles[apple_pos] = self.create_rect(apple_pos, BoardState.TILE_APPLE)
 
     def next_frame(self):
-        if self._board.is_winning_board():
-            self._board.create_new_apple()
+        board, ai_manager, laser_manager = self._board, self._snake_ai_manager, self._laser_manager
+        if board.is_winning_board():
+            board.create_new_apple()
 
-        next_board = BoardState(self._board, self._snake_ai_manager.get_next_move(self._board))
-        self.draw_board(self._board, next_board)
+        next_board = BoardState(board, ai_manager.get_next_move(board))
+        self.draw_board()
         self._board = next_board
         self.after(MS_BETWEEN_FRAMES, self.next_frame)
 
         self.debug_snake_length_turns.append(self._board.get_snake_length())
+
+    def update_laser(self):
+        player_position = self._laser_manager.get_player_position_if_valid()
+        if player_position and (player_position != self._board.get_apple_position()):
+            self._board.create_new_apple(player_position)
+        self.after(UPDATE_LASER_EVERY_NTH_MS, self.update_laser)
 
     @staticmethod
     def click(self, position):
@@ -138,7 +144,7 @@ class GUI(Frame):
         self.redraw_apple(pos_to_erase=old_apple_pos)
         self._snake_ai.get_next_move(self._board)
 
-    def quit(self, _=None):
+    def quit_all(self, _=None):
         print("quitting...")
         self._snake_ai_manager.quit()  # doesn't need as the master.quit() will close all associated daemons with it :)
         self._laser_manager.quit()
