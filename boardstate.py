@@ -227,15 +227,6 @@ class BoardState:
             yield i, pos
         yield self._apple_pos, BoardState.TILE_APPLE
 
-
-    ''' deprecated '''
-    def get_full_2d_board(self):
-        result = [[0 for _ in range(BoardState.get_rows())] for _ in range(BoardState.get_cols())]
-        for (x, y), value in self.iterate_important_positions():
-            result[x][y] = value
-        return result
-
-
     '''
     generates tuples in the pattern -
     successor_state, action
@@ -266,7 +257,7 @@ class BoardState:
     def is_critical_change_from(self, prev_board):
         return self._apple_pos != prev_board.get_apple_position()
 
-    def create_new_apple(self, position = None):
+    def create_new_apple(self, position=None):
         if position:
             if not self._is_captured_by_snake(position):
                 self._apple_pos = position

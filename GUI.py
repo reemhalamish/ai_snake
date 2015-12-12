@@ -10,19 +10,20 @@ BORDER_BETWEEN_TILES_PXL = 5
 
 class GUI(Frame):
 
-    def __init__(self, master, board_state, manager_snake_ai, manager_laser):
+    def __init__(self, master, board_state, manager_snake_ai, manager_laser, manager_sound):
         # python3 super().__init__(master)
         Frame.__init__(self, master)
         self._master = master
         self._board = board_state
         self._snake_ai_manager = manager_snake_ai
         self._laser_manager = manager_laser
+        self._sound_manger = manager_sound
         self._canvas = self.init_canvas()
         self.important_positions = dict()
         self.pos_to_canvas_handles = dict()
         self.suspicious_tiles_to_delete = set()
 
-        self.laser_photo = None
+        self.laser_photo = 1
 
         # debugging
         self.debug_snake_length_turns = []
@@ -36,7 +37,10 @@ class GUI(Frame):
         master.bind('s', lambda e: self.start_snake())
 
         self.pack()
-        self.show_laser_on_screen()
+        if manager_laser.should_show_screen_laser_tiles():
+            self.show_laser_on_screen()
+        else:
+            self.start_snake()
 
     def init_canvas(self):
         master = self.master
@@ -67,8 +71,9 @@ class GUI(Frame):
 
     def start_snake(self, _=None):
         if self.laser_photo:
-            self._canvas.delete(self.pos_to_canvas_handles.pop('laser_start_pic'))
+            self._canvas.delete(self.pos_to_canvas_handles.pop('laser_start_pic', None))
             self.laser_photo = None
+            self._sound_manger.play_repeat_music_theme()
             self.draw_first_board()
             self.after(MS_BETWEEN_FRAMES, self.next_frame)
             self.after(UPDATE_LASER_EVERY_NTH_MS, self.update_laser)
@@ -120,8 +125,10 @@ class GUI(Frame):
             self.pos_to_canvas_handles[apple_pos] = self.create_rect(apple_pos, BoardState.TILE_APPLE)
 
     def next_frame(self):
-        board, ai_manager, laser_manager = self._board, self._snake_ai_manager, self._laser_manager
+        board, ai_manager, laser_manager, sound_manager = \
+            self._board, self._snake_ai_manager, self._laser_manager, self._sound_manger
         if board.is_winning_board():
+            sound_manager.play_eating_sound()
             board.create_new_apple()
 
         next_board = BoardState(board, ai_manager.get_next_move(board))
@@ -132,16 +139,18 @@ class GUI(Frame):
         self.debug_snake_length_turns.append(self._board.get_snake_length())
 
     def update_laser(self):
+        old_apple_pos = self._board.get_apple_position()
         player_position = self._laser_manager.get_player_position_if_valid()
-        if player_position and (player_position != self._board.get_apple_position()):
+        if player_position and (player_position != old_apple_pos):
             self._board.create_new_apple(player_position)
+            self.redraw_apple(pos_to_erase=old_apple_pos)
         self.after(UPDATE_LASER_EVERY_NTH_MS, self.update_laser)
 
     @staticmethod
     def click(self, position):
         old_apple_pos = self._board.get_apple_position()
         self._board.create_new_apple(position)
-        self.redraw_apple(pos_to_erase=old_apple_pos)
+
         self._snake_ai.get_next_move(self._board)
 
     def quit_all(self, _=None):

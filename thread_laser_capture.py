@@ -205,9 +205,14 @@ class ThreadLaserCapture(threading.Thread):
             self.corners[2] = self.ave_x, self.ave_y
         elif key == ord('4'):
             self.corners[3] = self.ave_x, self.ave_y
+        elif key == ord('s'):       # for "skip", for "start"
+            self.manager.init_dummy_calculator()
+            print("laser capture thread is not neededd anymore. Quiting.")
+            cv2.destroyAllWindows()
+            exit()
         elif key == ord('q'):
             cv2.destroyAllWindows()
-            print("As the user requested, Laser-capture thread quitting.")
+            print("As the user requested, Laser-capture thread quiting.")
             self.manager.laser_daemon_encountered_exit = True
             exit()
 

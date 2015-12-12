@@ -253,6 +253,12 @@ class PointToTileCalculator():
         return self._get_col(point), self._get_row(point)
 
 
+class DummyCalculator(object):
+    @staticmethod
+    def get_tile(_=None):
+        return tuple((-1, -1))
+
+
 # helper function from http://stackoverflow.com/questions/20677795/find-the-point-of-intersecting-lines
 def line_intersection(line1, line2):
     xdiff = (line1[0][0] - line1[1][0], line2[0][0] - line2[1][0])

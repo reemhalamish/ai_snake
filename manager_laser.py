@@ -1,5 +1,5 @@
 from thread_laser_capture import ThreadLaserCapture
-from point_to_tile_calculator import PointToTileCalculator
+from point_to_tile_calculator import PointToTileCalculator, DummyCalculator
 from time import sleep
 
 TIME_TO_SLEEP_SECS = 0.01
@@ -19,6 +19,7 @@ class LaserManager:
         self.laser_capture_daemon = ThreadLaserCapture(self)
         self.laser_capture_daemon.start()
         self.laser_daemon_encountered_exit = False
+        self.using_good_calculator = False
 
     def start_when_ready(self):
         while not self.calc_player_place_to_snake_pos:
@@ -31,7 +32,11 @@ class LaserManager:
     def init_calculator(self, pTopLeft, pTopRight, pBotLeft, pBotRight):
         print(pTopLeft, pTopRight, pBotLeft, pBotRight)
         calc = PointToTileCalculator(self.rows, self.columns, pTopLeft, pTopRight, pBotLeft, pBotRight)
+        self.using_good_calculator = True
         self.calc_player_place_to_snake_pos = calc
+
+    def init_dummy_calculator(self):
+        self.calc_player_place_to_snake_pos = DummyCalculator()
 
     ''' returns a position in snake world, can return positions out side the grid! '''
     def get_player_position(self):
@@ -51,6 +56,9 @@ class LaserManager:
 
     def calculate_pixel(self, pixel):
         return self.calc_player_place_to_snake_pos.get_tile(pixel)
+
+    def should_show_screen_laser_tiles(self):
+        return self.using_good_calculator
 
     def quit(self):
         self.laser_capture_daemon.exit_async()
