@@ -143,7 +143,6 @@ class GUI(Frame):
         if player_position and (player_position != self._board.get_apple_position()):
             self._board.create_new_apple(player_position)
             self._sound_manager.update_chase(SoundManager.AT_CHASE)
-            print("Found a laser! at", player_position)
         self.after(UPDATE_LASER_EVERY_NTH_MS, self.update_laser)
 
     @staticmethod
