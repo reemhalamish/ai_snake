@@ -5,7 +5,7 @@ import sys
 import np
 from time import sleep
 
-CAMERA_TO_CHOOSE = 1  # device number. 0 for laptop is usually the frontCam, so for webCam use 1
+CAMERA_TO_CHOOSE = 0  # device number. 0 for laptop is usually the frontCam, so for webCam use 1
 SLEEP_TIME_BETWEEN_FRAMES_MS = 5
 SLEEP_TIME_BETWEEN_STAGES_SEC = 5
 

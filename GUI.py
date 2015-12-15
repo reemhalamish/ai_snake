@@ -1,6 +1,7 @@
 # python3 from tkinter import *
 from Tkinter import Frame, Canvas, PhotoImage
 from boardstate import BoardState
+from manager_sound import SoundManager
 # TILE_SIZE = 20
 FRAMES_PER_SECOND = 33
 UPDATE_LASER_EVERY_NTH_MS = 10
@@ -10,13 +11,14 @@ BORDER_BETWEEN_TILES_PXL = 5
 
 class GUI(Frame):
 
-    def __init__(self, master, board_state, manager_snake_ai, manager_laser):
+    def __init__(self, master, board_state, manager_snake_ai, manager_laser, manager_sound):
         # python3 super().__init__(master)
         Frame.__init__(self, master)
         self._master = master
         self._board = board_state
         self._snake_ai_manager = manager_snake_ai
         self._laser_manager = manager_laser
+        self._sound_manager = manager_sound
         self._canvas = self.init_canvas()
         self.important_positions = dict()
         self.pos_to_canvas_handles = dict()
@@ -34,6 +36,8 @@ class GUI(Frame):
         master.bind('q', lambda e: self.quit_all())
         master.bind('d', lambda e: self.debug())
         master.bind('s', lambda e: self.start_snake())
+        master.bind('+', lambda e: self.change_frames_speed(5))
+        master.bind('-', lambda e: self.change_frames_speed(-5))
 
         self.pack()
         self.show_laser_on_screen()
@@ -69,9 +73,11 @@ class GUI(Frame):
         if self.laser_photo:
             self._canvas.delete(self.pos_to_canvas_handles.pop('laser_start_pic'))
             self.laser_photo = None
+            self._sound_manager.play_normal_loop()
             self.draw_first_board()
             self.after(MS_BETWEEN_FRAMES, self.next_frame)
             self.after(UPDATE_LASER_EVERY_NTH_MS, self.update_laser)
+
 
     def draw_first_board(self):
         master, board = self._master, self._board
@@ -122,6 +128,7 @@ class GUI(Frame):
     def next_frame(self):
         board, ai_manager, laser_manager = self._board, self._snake_ai_manager, self._laser_manager
         if board.is_winning_board():
+            self._sound_manager.update_chase(SoundManager.NO_CHASE)
             board.create_new_apple()
 
         next_board = BoardState(board, ai_manager.get_next_move(board))
@@ -135,6 +142,8 @@ class GUI(Frame):
         player_position = self._laser_manager.get_player_position_if_valid()
         if player_position and (player_position != self._board.get_apple_position()):
             self._board.create_new_apple(player_position)
+            self._sound_manager.update_chase(SoundManager.AT_CHASE)
+            print("Found a laser! at", player_position)
         self.after(UPDATE_LASER_EVERY_NTH_MS, self.update_laser)
 
     @staticmethod
@@ -160,7 +169,7 @@ class GUI(Frame):
     @staticmethod
     def get_color_for_tile(tile_value):
         if tile_value == BoardState.TILE_APPLE:
-            return '#f55'   # REDish
+            return '#000'   # INVISIBLE APPLE!! '#f55'   # REDish
         elif tile_value == BoardState.TILE_SNAKE_HEAD:
             return '#08f'   # BLUE greeny
         elif tile_value >= BoardState.TILE_SNAKE_BODY_DEFAULT:
@@ -187,6 +196,11 @@ class GUI(Frame):
         color = GUI.get_color_for_tile(tile_value)
         x_start, y_start, x_end, y_end = self.convert_pos_to_canvas(tile_pos)
         return self._canvas.create_rectangle(x_start, y_start, x_end, y_end, fill=color)
+
+    def change_frames_speed(self, speed_to_change):
+        global MS_BETWEEN_FRAMES
+        MS_BETWEEN_FRAMES += speed_to_change
+        MS_BETWEEN_FRAMES = max(MS_BETWEEN_FRAMES, 10)
 
     BOARD_TO_PICNAME = {
         BoardState.TILE_APPLE:              "green",

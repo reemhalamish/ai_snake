@@ -39,8 +39,10 @@ class LaserManager:
         return self.calc_player_place_to_snake_pos.get_tile(self.player_place)
 
     def get_player_position_if_valid(self):
+        if self.frames_since_last_change > 1:
+            return None
         cols, rows = self.columns, self.rows
-        player_pos = x,y = self.get_player_position()
+        player_pos = x, y = self.get_player_position()
         if not (0 <= x < cols and 0 <= y < rows):
             return None
         return player_pos
