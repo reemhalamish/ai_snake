@@ -1,0 +1,23 @@
+AI snake that chases your laser point
+
+Usage:
+
+download\clone the repository. Make sure to have a front-cam or a web-cam, as well as a laser and a projector.
+
+Note that if two cameras (front and web) are being detected by the computer - it can happen when you use a laptop with a frontcam - you may need to change the camera id at thread_laser_capture.py to be 1 or 0, play with it to see for yourself :)
+
+Run main.py (you will may need to download tkinter and numpy,  snake runs on python2).
+
+At any point you can press 'q' to quit.
+
+The first thing to run will be the calibration. Aim the laser to any point and hold it steady, when at the same time press {this button}:
+
+topleft  {1}
+topright {2}
+botleft  {3}
+botright {4}
+
+if you missed a capture, just repress the button.
+When all four corners were detected the snake will take a couple of seconds to start. The screen will go black and then the screen will show the way that your camera sees the projector - you will see a grid of green and blue square(ish) shapes. Press 's' to start.
+
+when the snake runs, you can press '+' and '-' to reduce and increase the miliseconds between frames, impacting snake speed.
