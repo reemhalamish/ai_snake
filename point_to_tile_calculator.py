@@ -4,10 +4,20 @@ from cv2 import flann_Index
 
 X, Y = 0, 1
 EPSILON = 0.000001      # used to avoid (number/another_number=0) bu using (another_number+EPSILON)
+DUMMY_POINT = (-1, -1)
 
 
-class PointToTileCalculator():
+class DummyCalculator:
+    def __init__(self):
+        self.DUMMY_POINT = DUMMY_POINT
+
+    def get_tile(self, _=None):
+        return self.DUMMY_POINT
+
+
+class PointToTileCalculator(DummyCalculator):
     def __init__(self, rows, columns, pTopLeft, pTopRight, pBotLeft, pBotRight):
+        DummyCalculator.__init__(self)
         self.rows = rows
         self.columns = columns
         self.pTopLeft = pTopLeft

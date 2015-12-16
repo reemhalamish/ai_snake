@@ -40,12 +40,15 @@ class GUI(Frame):
         master.bind('-', lambda e: self.change_frames_speed(-5))
 
         self.pack()
-        self.show_laser_on_screen()
+        if manager_laser.using_laser():
+            self.show_laser_on_screen()
+        else:
+            self.laser_photo = 'start!'
+            self.start_snake()
 
     def init_canvas(self):
         master = self.master
-        canvas = Canvas(self, width=master.winfo_screenwidth()-2, height=master.winfo_screenheight()-2, bg='black')
-        # TODO SHOW remove the -2 later
+        canvas = Canvas(self, width=master.winfo_screenwidth(), height=master.winfo_screenheight(), bg='black')
         canvas.pack()
         return canvas
 
@@ -71,12 +74,13 @@ class GUI(Frame):
 
     def start_snake(self, _=None):
         if self.laser_photo:
-            self._canvas.delete(self.pos_to_canvas_handles.pop('laser_start_pic'))
+            self._canvas.delete(self.pos_to_canvas_handles.pop('laser_start_pic', None))
             self.laser_photo = None
             self._sound_manager.play_normal_loop()
             self.draw_first_board()
             self.after(MS_BETWEEN_FRAMES, self.next_frame)
             self.after(UPDATE_LASER_EVERY_NTH_MS, self.update_laser)
+            self.master.focus_force()
 
 
     def draw_first_board(self):
