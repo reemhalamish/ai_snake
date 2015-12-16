@@ -32,6 +32,7 @@ class LaserManager:
     def init_calculator(self, pTopLeft, pTopRight, pBotLeft, pBotRight):
         print(pTopLeft, pTopRight, pBotLeft, pBotRight)
         calc = PointToTileCalculator(self.rows, self.columns, pTopLeft, pTopRight, pBotLeft, pBotRight)
+        self.using_good_calculator = True
         self.calc_player_place_to_snake_pos = calc
 
     def init_dummy_calculator(self):

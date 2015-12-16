@@ -10,7 +10,10 @@ Run main.py (you will may need to download tkinter and numpy,  snake runs on pyt
 
 At any point you can press 'q' to quit.
 
-The first thing to run will be the calibration. Aim the laser to any point and hold it steady, when at the same time press {this button}:
+The first thing to run will be the calibration. 
+To skip it press 's', 
+to use the laser Aim the laser to thoses points at the projector (make sure the camera can see it!) 
+and hold it steady, when at the same time press {this button}:
 
 topleft  {1}
 topright {2}

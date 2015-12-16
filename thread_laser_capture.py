@@ -3,6 +3,8 @@ import cv2.cv as cv
 import cv2
 import sys
 import np
+
+
 from time import sleep
 
 CAMERA_TO_CHOOSE = 0  # device number. 0 for laptop is usually the frontCam, so for webCam use 1
@@ -212,7 +214,7 @@ class ThreadLaserCapture(threading.Thread):
             exit()
         elif key == ord('q'):
             cv2.destroyAllWindows()
-            print("As the user requested, Laser-capture thread quitting.")
+            print("As the user requested, Laser-capture thread quiting.")
             self.manager.laser_daemon_encountered_exit = True
             exit()
 
@@ -253,6 +255,7 @@ class ThreadLaserCapture(threading.Thread):
 
     def exit_async(self):
         self.exit = True
+
 
 def ms_to_sec(ms):
     return 0.001 * ms

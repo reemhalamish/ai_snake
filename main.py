@@ -3,7 +3,6 @@ from boardstate import BoardState
 from manager_ai import SnakeAIManager
 from manager_laser import LaserManager
 from manager_sound import SoundManager
-
 # python3 from tkinter import Tk
 from Tkinter import Tk
 

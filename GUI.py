@@ -24,7 +24,7 @@ class GUI(Frame):
         self.pos_to_canvas_handles = dict()
         self.suspicious_tiles_to_delete = set()
 
-        self.laser_photo = None
+        self.laser_photo = 1
 
         # debugging
         self.debug_snake_length_turns = []
@@ -130,7 +130,8 @@ class GUI(Frame):
             self.pos_to_canvas_handles[apple_pos] = self.create_rect(apple_pos, BoardState.TILE_APPLE)
 
     def next_frame(self):
-        board, ai_manager, laser_manager = self._board, self._snake_ai_manager, self._laser_manager
+        board, ai_manager, laser_manager, sound_manager = \
+            self._board, self._snake_ai_manager, self._laser_manager, self._sound_manger
         if board.is_winning_board():
             self._sound_manager.update_chase(SoundManager.NO_CHASE)
             board.create_new_apple()
@@ -143,18 +144,13 @@ class GUI(Frame):
         self.debug_snake_length_turns.append(self._board.get_snake_length())
 
     def update_laser(self):
+        old_apple_pos = self._board.get_apple_position()
         player_position = self._laser_manager.get_player_position_if_valid()
-        if player_position and (player_position != self._board.get_apple_position()):
+        if player_position and (player_position != old_apple_pos):
             self._board.create_new_apple(player_position)
             self._sound_manager.update_chase(SoundManager.AT_CHASE)
+            self.redraw_apple(pos_to_erase=old_apple_pos)
         self.after(UPDATE_LASER_EVERY_NTH_MS, self.update_laser)
-
-    @staticmethod
-    def click(self, position):
-        old_apple_pos = self._board.get_apple_position()
-        self._board.create_new_apple(position)
-        self.redraw_apple(pos_to_erase=old_apple_pos)
-        self._snake_ai.get_next_move(self._board)
 
     def quit_all(self, _=None):
         print("quitting...")
@@ -167,7 +163,6 @@ class GUI(Frame):
         self._master.destroy()
         print("quiting main thread")
         exit()
-
 
     @staticmethod
     def get_color_for_tile(tile_value):
